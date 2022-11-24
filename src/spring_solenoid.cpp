@@ -2,7 +2,9 @@
 
 #include <Arduino.h>
 
-SpringSolenoid::SpringSolenoid(int pin_out) : pin_out(pin_out) {}
+SpringSolenoid::SpringSolenoid(int pin_out) : pin_out(pin_out) {
+    pinMode(pin_out, OUTPUT);
+}
 
 void SpringSolenoid::release() {
     digitalWrite(pin_out, HIGH);
