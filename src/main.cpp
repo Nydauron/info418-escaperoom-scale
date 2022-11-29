@@ -101,11 +101,11 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
 
     PT_BEGIN(pt);
 
-    weighing_completed = true;
+    weighing_completed = false;
     PT_INIT(&led_pulse_pt);
 
     for (size_t i = 0; i < weights.get_max_elements(); i++) {
-        weights.add(loadcell.get_units());
+        weights.add(loadcell.get_units(10));
     }
 
     while (true) {
