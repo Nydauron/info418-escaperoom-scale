@@ -39,7 +39,8 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt)) {
   PT_BEGIN(pt);
 
   #ifdef DEBUG
-  Serial.println("Began fade step");
+  if (!weighing_completed)
+    Serial.println("Began fade step");
   #endif
 
   led.set_color(RGBB{255, 150, 0, 0}); // Orange color
@@ -77,6 +78,7 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
 	for (byte i = 0; i < times; i++) {
     #ifdef DEBUG
     Serial.println("Reading loadcell");
+    delayMicroseconds(random(10, 5000));
     #endif
 		sum += loadcell.read();
 		delay(0);
@@ -113,6 +115,8 @@ void setup() {
     led.apply();
   }
 
+  Serial.println("Calibrating ...");
+
   // Call the protothread routine to measure the tare weight
   // This should also make the LED gradually pulse orange every 1 second or so
   PT_SCHEDULE(measure_tare(&measure_tare_pt));
@@ -120,9 +124,10 @@ void setup() {
   // Set the LED color to green to signal it is done calibraing
   led.set_color(RGBB{0, 255, 0, 100});
   led.apply();
-  Serial.println("Ready!");
+  Serial.println("Done calibrating!");
   delay(5000); // Wait 5 seconds to allow for weights to be taken off the scale
   led.reset_and_apply();
+  Serial.println("Ready and actively waiting for correct weights!");
   // Once LED is off, the scale is operational
 }
 
