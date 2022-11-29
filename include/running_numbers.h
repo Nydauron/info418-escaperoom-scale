@@ -48,6 +48,10 @@ class RunningNumbers {
             return avg_diff_sum / valid_elements;
         }
 
+        size_t get_max_elements() {
+            return max_elements;
+        }
+
         bool is_within_tolerance(float expected, float tolerance) {
             float avg = get_avg();
             return abs(avg - expected) <= tolerance;
