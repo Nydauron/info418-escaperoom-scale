@@ -1,3 +1,5 @@
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 #include <Arduino.h>
 #include <stdlib.h>
 #include "HX711.h"
