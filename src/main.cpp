@@ -60,10 +60,11 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt)) {
 static struct pt measure_tare_pt;
 
 static PT_THREAD(measure_tare (struct pt *pt)) {
+  static struct pt led_pulse_pt;
+
   PT_BEGIN(pt);
 
   weighing_completed = false;
-  static struct pt led_pulse_pt;
 
   Serial.println("Calibrating tare weight ...");
 
