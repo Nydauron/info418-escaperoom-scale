@@ -58,6 +58,21 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt)) {
     PT_END(pt);
 }
 
+// Based off from HX711::read_average()
+inline long read_average_pt(struct pt *led_pt, byte times = 1U) {
+    long sum = 0;
+    for (byte i = 0; i < times; i++) {
+        #ifdef DEBUG
+        Serial.println("Reading loadcell");
+        delayMicroseconds(random(10, 5000));
+        #endif
+        sum += loadcell.read();
+        delay(0);
+        PT_SCHEDULE(led_gradual_pulse(led_pt));
+    }
+    return sum / times;
+}
+
 static struct pt measure_tare_pt;
 
 static PT_THREAD(measure_tare (struct pt *pt)) {
@@ -72,22 +87,8 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
     PT_INIT(&led_pulse_pt);
     PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt));
 
-    // From HX711::read_average()
-    // TODO: Is there a nicer way of incorporating protothreads into a separate function? (probably
-    // since PT_SCHEDULE doesnt do much other than call the function directly)
-    long sum = 0;
-    const int times = 100;
-        for (byte i = 0; i < times; i++) {
-        #ifdef DEBUG
-        Serial.println("Reading loadcell");
-        delayMicroseconds(random(10, 5000));
-        #endif
-            sum += loadcell.read();
-            delay(0);
-        PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt));
-        }
-        long avg = sum / times;
-        loadcell.set_offset(avg);
+    long avg = read_average_pt(&led_pulse_pt, 100);
+    loadcell.set_offset(avg);
 
     weighing_completed = true;
     PT_WAIT_THREAD(pt, led_gradual_pulse(&led_pulse_pt));
@@ -138,20 +139,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
         }
         }
 
-        // TODO: replace with function if posible to reduce redundant code
-        long sum = 0;
-        const int times = 10;
-        for (byte i = 0; i < times; i++) {
-        #ifdef DEBUG
-        Serial.println("Reading loadcell");
-        delayMicroseconds(random(10, 5000));
-        #endif
-        // sum += 0; // random(1000, 10000);
-        sum += loadcell.read();
-        delay(0);
-        PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt));
-        }
-        long avg = sum / times - loadcell.get_offset();
+        long avg = read_average_pt(&led_pulse_pt, 10) - loadcell.get_offset();
         weights.add(avg / loadcell.get_scale());
 
         if (weights.get_varience() > VARIENCE_EPLSION) {
