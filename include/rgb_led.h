@@ -28,7 +28,7 @@ class RGBLED {
         unsigned char b;
         unsigned char brightness; // [0-100] and is multiplied to the corresponding (r,g,b) values
 
-        long cycle;
+        unsigned long cycle;
 
         inline unsigned char brightness_correction(unsigned char);
     public:
@@ -48,7 +48,7 @@ class RGBLED {
 
         // Changes the brightness based off a sinusoidal graph. Updates the LED after each step.
         // Each step is equivalent to a "frame" on what is displayed on the LED
-        void fading_brightness_step();
+        void fading_brightness_step(unsigned long steps);
 
         // The update function to update the LED based off the current color and brightness values
         void apply();

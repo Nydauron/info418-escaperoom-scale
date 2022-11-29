@@ -50,8 +50,9 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt)) {
         #ifdef DEBUG
         Serial.println("LED Step");
         #endif
-        led.fading_brightness_step();
-        PT_SLEEP(pt, 10);
+        constexpr unsigned long cycles = 20; // in ms
+        led.fading_brightness_step(cycles);
+        PT_SLEEP(pt, cycles);
     }
 
     led.reset_and_apply();
