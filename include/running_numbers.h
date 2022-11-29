@@ -57,14 +57,3 @@ class RunningNumbers {
             return abs(avg - expected) <= tolerance;
         }
 };
-
-
-class Test {
-    private:
-        int hi;
-    public:
-        Test() {
-            hi = 1337;
-        }
-};
-
