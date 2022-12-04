@@ -26,11 +26,12 @@ const int LOADCELL_DOUT_PIN = 2;
 const int LOADCELL_SCK_PIN = 3;
 
 // 2. Adjustment settings
-const long LOADCELL_OFFSET = 50682624;
-const long LOADCELL_DIVIDER = 5895655;
+constexpr float LOADCELL_MAX_KG = 20; // 20kg
+constexpr float LOADCELL_DIVIDER = 2010.0F / LOADCELL_MAX_KG;
 
-const double VARIENCE_EPLSION = 1e-4; // Threshold to determine if weight on scale is not changing.
-const float TOLERANCE = 10;
+const double VARIENCE_EQUILIBRIUM_REACHED = 2e-2; // Threshold to determine if weight on scale is not changing.
+const double VARIENCE_CURRENTLY_WEIGHING = 5e-1;
+const float TOLERANCE = 1.25F;
 
 RunningNumbers<float> weights(10);
 
@@ -114,7 +115,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
     }
 
     while (true) {
-        if (weights.get_varience() <= VARIENCE_EPLSION && !weighing_completed) {
+        if (weights.get_varience() <= VARIENCE_EQUILIBRIUM_REACHED && !weighing_completed) {
             weighing_completed = true;
             PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt)); // clean up LED runtime
 
@@ -147,7 +148,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
         long avg = read_average_pt(&led_pulse_pt, 10) - loadcell.get_offset();
         weights.add(avg / loadcell.get_scale());
 
-        if (weights.get_varience() > VARIENCE_EPLSION) {
+        if (weights.get_varience() > VARIENCE_CURRENTLY_WEIGHING) {
             weighing_completed = false;
         }
     }
