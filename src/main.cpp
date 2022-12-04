@@ -33,7 +33,7 @@ const double VARIENCE_EQUILIBRIUM_REACHED = 2e-2; // Threshold to determine if w
 const double VARIENCE_CURRENTLY_WEIGHING = 5e-1;
 const float TOLERANCE = 1.25F;
 
-RunningNumbers<float> weights(10);
+RunningNumbers<float> weights(5);
 
 static bool weighing_completed  = false;
 
@@ -113,10 +113,6 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
     weighing_completed = false;
     PT_INIT(&led_pulse_pt);
 
-    for (size_t i = 0; i < weights.get_max_elements(); i++) {
-        weights.add(loadcell.get_units(10));
-    }
-
     while (true) {
         if (weights.get_varience() <= VARIENCE_EQUILIBRIUM_REACHED && !weighing_completed) {
             weighing_completed = true;
@@ -185,17 +181,24 @@ void setup() {
     Serial.println("Calibrating ...");
 
     // Call the protothread routine to measure the tare weight
-    // This should also make the LED gradually pulse orange every 1 second or so
+    // This should also make the LED gradually pulse blue every 1 second or so
     PT_SCHEDULE(measure_tare(&measure_tare_pt));
 
     // Set the LED color to green to signal it is done calibraing
     led.set_color(RGBB{0, 255, 0, 100});
     led.apply();
     Serial.println("Done calibrating!");
-    delay(5000); // Wait 5 seconds to allow for weights to be taken off the scale
+    delay(3000); // Wait 3 seconds to allow for weights to be taken off the scale
+
+    // Fill up running average
+    for (size_t i = 0; i < weights.get_max_elements(); i++) {
+        long avg = loadcell.get_units(10);
+        weights.add(avg);
+    }
+    // Once LED is off, the scale is operational
     led.reset_and_apply();
     Serial.println("Ready and actively waiting for correct weights!");
-    // Once LED is off, the scale is operational
+    delay(500); // Delay so that the LED can obserably turn off
 }
 
 void loop() {
