@@ -37,7 +37,7 @@ RunningNumbers<float> weights(10);
 
 static bool weighing_completed  = false;
 
-static PT_THREAD(led_gradual_pulse (struct pt *pt)) {
+static PT_THREAD(led_gradual_pulse (struct pt *pt, RGBB color = RGBB{255, 100, 0, 0})) {
     PT_BEGIN(pt);
 
     #ifdef DEBUG
@@ -45,7 +45,7 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt)) {
         Serial.println("Began fade step");
     #endif
 
-    led.set_color(RGBB{255, 150, 0, 0}); // Orange color
+    led.set_color(color); // Orange color RGBB{255, 150, 0, 0}
     static unsigned long start_time = millis();
 
     while (!weighing_completed) {
@@ -65,16 +65,16 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt)) {
 }
 
 // Based off from HX711::read_average()
-inline long read_average_pt(struct pt *led_pt, byte times = 1U) {
+inline long read_average_pt(struct pt *led_pt, unsigned int times = 1U, RGBB color = RGBB{255, 100, 0, 0}) {
     long sum = 0;
-    for (byte i = 0; i < times; i++) {
+    for (unsigned int i = 0; i < times; i++) {
         #ifdef DEBUG
         Serial.println("Reading loadcell");
         delayMicroseconds(random(10, 5000));
         #endif
         sum += loadcell.read();
         delay(0);
-        PT_SCHEDULE(led_gradual_pulse(led_pt));
+        PT_SCHEDULE(led_gradual_pulse(led_pt, color));
     }
     return sum / times;
 }
@@ -90,14 +90,17 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
 
     Serial.println("Calibrating tare weight ...");
 
+    static RGBB blue = RGBB{0, 0, 255, 100};
+
     PT_INIT(&led_pulse_pt);
-    PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt));
+    PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt, blue));
 
-    long avg = read_average_pt(&led_pulse_pt, 100);
+    Serial.println("Sampling next 100 units ...");
+
+    long avg = read_average_pt(&led_pulse_pt, 100, blue);
     loadcell.set_offset(avg);
-
     weighing_completed = true;
-    PT_WAIT_THREAD(pt, led_gradual_pulse(&led_pulse_pt));
+    PT_WAIT_THREAD(pt, led_gradual_pulse(&led_pulse_pt, blue));
 
     PT_END(pt);
 }
