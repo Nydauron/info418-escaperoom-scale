@@ -111,40 +111,40 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
 
     while (true) {
         if (weights.get_varience() <= VARIENCE_EPLSION && !weighing_completed) {
-        weighing_completed = true;
-        PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt)); // clean up LED runtime
+            weighing_completed = true;
+            PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt)); // clean up LED runtime
 
-        // TODO: check if weight is within tolerance to 0
-        if (abs(weights.get_avg()) <= TOLERANCE) {
-            // CORRECT!
-            #ifdef DEBUG
-            Serial.println("Correct!");
-            #endif
-            led.set_color(RGBB{0, 255, 0, 100});
-            led.apply();
-            lock.release();
-            delay(30000);
-            break;
-        } else {
-            // INCORRECT!
-            #ifdef DEBUG
-            Serial.println("Incorrect!");
-            #endif
-            for (int i = 0; i < 3; i++) {
-            led.set_color(RGBB{255, 0, 0, 100});
-            led.apply();
-            delay(1000);
-            led.reset_and_apply();
-            delay(1000);
+            // TODO: check if weight is within tolerance to 0
+            if (abs(weights.get_avg()) <= TOLERANCE) {
+                // CORRECT!
+                #ifdef DEBUG
+                Serial.println("Correct!");
+                #endif
+                led.set_color(RGBB{0, 255, 0, 100});
+                led.apply();
+                lock.release();
+                delay(30000);
+                break;
+            } else {
+                // INCORRECT!
+                #ifdef DEBUG
+                Serial.println("Incorrect!");
+                #endif
+                for (int i = 0; i < 3; i++) {
+                    led.set_color(RGBB{255, 0, 0, 100});
+                    led.apply();
+                    delay(1000);
+                    led.reset_and_apply();
+                    delay(1000);
+                }
             }
-        }
         }
 
         long avg = read_average_pt(&led_pulse_pt, 10) - loadcell.get_offset();
         weights.add(avg / loadcell.get_scale());
 
         if (weights.get_varience() > VARIENCE_EPLSION) {
-        weighing_completed = false;
+            weighing_completed = false;
         }
     }
 
