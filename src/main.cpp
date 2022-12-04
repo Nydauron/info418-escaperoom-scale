@@ -112,7 +112,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
     while (true) {
         if (weights.get_varience() <= VARIENCE_EPLSION && !weighing_completed) {
         weighing_completed = true;
-        PT_WAIT_THREAD(pt, led_gradual_pulse(&led_pulse_pt));
+        PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt)); // clean up LED runtime
 
         // TODO: check if weight is within tolerance to 0
         if (abs(weights.get_avg()) <= TOLERANCE) {
