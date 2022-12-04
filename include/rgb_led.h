@@ -28,8 +28,6 @@ class RGBLED {
         unsigned char b;
         unsigned char brightness; // [0-100] and is multiplied to the corresponding (r,g,b) values
 
-        unsigned long cycle;
-
         inline unsigned char brightness_correction(unsigned char);
     public:
         RGBLED(bool is_anode, int red_pin, int green_pin, int blue_pin);

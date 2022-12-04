@@ -45,14 +45,18 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt)) {
     #endif
 
     led.set_color(RGBB{255, 150, 0, 0}); // Orange color
+    static unsigned long start_time = millis();
 
     while (!weighing_completed) {
         #ifdef DEBUG
         Serial.println("LED Step");
         #endif
-        constexpr unsigned long cycles = 20; // in ms
-        led.fading_brightness_step(cycles);
-        PT_SLEEP(pt, cycles);
+        constexpr unsigned long cycles = 10; // in ms
+        unsigned long current_time = millis();
+        unsigned long current_frame = current_time - start_time;
+        led.fading_brightness_step(current_frame);
+        static unsigned long time_to_wait = (((millis() + cycles) / cycles) * cycles) - current_time;
+        PT_SLEEP(pt, time_to_wait);
     }
 
     led.reset_and_apply();

@@ -24,7 +24,6 @@ void RGBLED::reset() {
     g = 0;
     b = 0;
     brightness = 255;
-    cycle = 0;
 }
 
 void RGBLED::reset_and_apply() {
@@ -49,9 +48,9 @@ void RGBLED::apply() {
     analogWrite(BLUE_LIGHT_PIN, anode_led_value_fix(brightness_correction(b), IS_ANODE_LED));
 }
 
-void RGBLED::fading_brightness_step(unsigned long steps) {
+void RGBLED::fading_brightness_step(unsigned long step_num) {
     constexpr long PERIOD_LEN = 1000; // 1ms per step, so period = a second
-    cycle += steps;
-    brightness = MAX_BRIGHTNESS * abs(sin((double)(cycle) * M_PI / PERIOD_LEN));
+    constexpr long YOFFSET = 10;
+    brightness = max(0, (MAX_BRIGHTNESS + YOFFSET) * abs(sin((double)(step_num) * M_PI / PERIOD_LEN)) - YOFFSET);
     apply();
 }
