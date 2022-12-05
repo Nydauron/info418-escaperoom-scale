@@ -244,7 +244,10 @@ void setup() {
 
     led.set_color(RGBB{BLUE, 50});
     led.apply();
-    Serial.println("Waiting for taring signal ...");
+
+    #ifdef DEBUG
+    Serial.println("Waiting for signal to tare ...");
+    #endif
 
     while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
 
@@ -255,8 +258,16 @@ void setup() {
 
     PT_SCHEDULE(measure_tare(&measure_tare_pt));
 
+    #ifdef DEBUG
+    Serial.println("Taring done!");
+    #endif
+
     led.set_color(RGBB{ORANGE, 50});
     led.apply();
+
+    #ifdef DEBUG
+    Serial.println("Waiting for signal to measure correct weight value ...");
+    #endif
 
     while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
 
@@ -266,7 +277,7 @@ void setup() {
     while (digitalRead(BUTTON_TARE_PIN) == HIGH) {} // user must release the button
 
     #ifdef DEBUG
-    Serial.println("Calibrating ...");
+    Serial.println("Measuring ...");
     #endif
 
     // Call the protothread routine to measure the tare weight
