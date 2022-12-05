@@ -23,7 +23,7 @@ void RGBLED::reset() {
     r = 0;
     g = 0;
     b = 0;
-    brightness = 255;
+    brightness = MAX_BRIGHTNESS;
 }
 
 void RGBLED::reset_and_apply() {
@@ -35,11 +35,11 @@ void RGBLED::set_color(RGBB color) {
     r = color.r;
     g = color.g;
     b = color.b;
-    brightness = color.brightness;
+    brightness = min(color.brightness, MAX_BRIGHTNESS);
 }
 
 void RGBLED::set_brightness(unsigned char brightness) {
-    this->brightness = brightness;
+    this->brightness = min(brightness, MAX_BRIGHTNESS);
 }
 
 void RGBLED::apply() {
@@ -51,6 +51,6 @@ void RGBLED::apply() {
 void RGBLED::fading_brightness_step(unsigned long step_num) {
     constexpr long PERIOD_LEN = 1000; // 1ms per step, so period = a second
     constexpr long YOFFSET = 10;
-    brightness = max(0, (MAX_BRIGHTNESS + YOFFSET) * abs(sin((double)(step_num) * M_PI / PERIOD_LEN)) - YOFFSET);
+    brightness = min(max(0, (MAX_BRIGHTNESS + YOFFSET) * abs(sin((double)(step_num) * M_PI / PERIOD_LEN)) - YOFFSET), MAX_BRIGHTNESS);
     apply();
 }
