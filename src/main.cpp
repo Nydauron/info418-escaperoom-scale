@@ -38,23 +38,19 @@ float expected_weight = 0.0;
 
 RunningNumbers<float> weights(5);
 
+#ifdef DEBUG
+RunningNumbers<float> calibration_weights(100);
+#endif
+
 static bool weighing_completed  = false;
 
 static PT_THREAD(led_gradual_pulse (struct pt *pt, RGBB color = RGBB{255, 100, 0, 0})) {
     PT_BEGIN(pt);
 
-    #ifdef DEBUG
-    if (!weighing_completed)
-        Serial.println("Began fade step");
-    #endif
-
     led.set_color(color); // Orange color RGBB{255, 150, 0, 0}
     static unsigned long start_time = millis();
 
     while (!weighing_completed) {
-        #ifdef DEBUG
-        Serial.println("LED Step");
-        #endif
         constexpr unsigned long cycles = 10; // in ms
         unsigned long current_time = millis();
         unsigned long current_frame = current_time - start_time;
@@ -69,16 +65,21 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt, RGBB color = RGBB{255, 100, 0
 
 // Based off from HX711::read_average()
 inline long read_average_pt(struct pt *led_pt, unsigned int times = 1U, RGBB color = RGBB{255, 100, 0, 0}) {
+    #ifdef DEBUG
+    static int c = 0;
+    #endif
     long sum = 0;
     for (unsigned int i = 0; i < times; i++) {
-        #ifdef DEBUG
-        Serial.println("Reading loadcell");
-        delayMicroseconds(random(10, 5000));
-        #endif
         sum += loadcell.read();
         delay(0);
         PT_SCHEDULE(led_gradual_pulse(led_pt, color));
     }
+    #ifdef DEBUG
+    if (c % 10 == 0) {
+        calibration_weights.add(sum / times);
+    }
+    c++;
+    #endif
     return sum / times;
 }
 
@@ -97,11 +98,30 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
 
     PT_INIT(&led_pulse_pt);
     PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt, blue));
+    #ifdef DEBUG
+    static unsigned long start = millis();
+    #endif
 
     Serial.println("Sampling next 50 units ...");
 
     long avg = read_average_pt(&led_pulse_pt, 50, blue);
     loadcell.set_offset(avg);
+
+    #ifdef DEBUG
+    static unsigned long end = millis();
+    Serial.print(avg);
+    Serial.print("\t");
+    Serial.println(expected_weight);
+
+    Serial.print("Time: ");
+    Serial.println(end - start);
+    Serial.print("Average tare: ");
+    Serial.println(calibration_weights.get_avg());
+    Serial.print("Variation: ");
+    Serial.println(calibration_weights.get_varience());
+    Serial.print("Tare set to: ");
+    Serial.println(loadcell.get_offset());
+    #endif
     weighing_completed = true;
     PT_WAIT_THREAD(pt, led_gradual_pulse(&led_pulse_pt, blue));
 
@@ -144,12 +164,23 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
         long avg = read_average_pt(&led_pulse_pt, 10) - loadcell.get_offset();
         weights.add(avg / loadcell.get_scale());
 
+        #ifdef DEBUG
+        Serial.print("Average running weight: ");
+        Serial.println(weights.get_avg());
+        Serial.print("Weight varience: ");
+        Serial.println(weights.get_varience());
+        #endif
+
         if (weights.get_varience() > VARIENCE_CURRENTLY_WEIGHING) {
             weighing_completed = false;
         } else if (weights.get_varience() <= VARIENCE_EQUILIBRIUM_REACHED && !weighing_completed) {
             weighing_completed = true;
             PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt)); // clean up LED runtime
             loadcell.power_down();
+            #ifdef DEBUG
+            Serial.print("Average weight for check: ");
+            Serial.println(weights.get_avg());
+            #endif
             // TODO: check if weight is within tolerance to 0
             if (abs(weights.get_avg() - expected_weight) <= TOLERANCE) {
                 // CORRECT!
@@ -183,7 +214,9 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
 }
 
 void setup() {
+    #ifdef DEBUG
     Serial.begin(9600);
+    #endif
     PT_INIT(&measure_tare_pt);
 
     pinMode(BUTTON_TARE_PIN, INPUT);
@@ -219,7 +252,9 @@ void setup() {
 
     while (digitalRead(BUTTON_TARE_PIN) == HIGH) {} // user must release the button
 
+    #ifdef DEBUG
     Serial.println("Calibrating ...");
+    #endif
 
     // Call the protothread routine to measure the tare weight
     // This should also make the LED gradually pulse blue every 1 second or so
@@ -231,9 +266,12 @@ void setup() {
     // Set the LED color to green to signal it is done calibraing
     led.set_color(RGBB{0, 255, 0, 50});
     led.apply();
+
+    #ifdef DEBUG
     Serial.println("Done calibrating!");
     Serial.print("Expected weight:\t");
     Serial.println(expected_weight);
+    #endif
     delay(3000); // Wait 3 seconds to allow for weights to be taken off the scale
 
     // Fill up running average
@@ -244,7 +282,9 @@ void setup() {
     // Once LED is off, the scale is operational
     led.reset_and_apply();
     loadcell.power_down();
+    #ifdef DEBUG
     Serial.println("Ready and actively waiting for correct weights!");
+    #endif
     delay(500); // Delay so that the LED can obserably turn off
 }
 
