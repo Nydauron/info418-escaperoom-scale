@@ -209,6 +209,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
                 #endif
                 led.set_color(RGBB{GREEN, 100});
                 led.apply();
+                delay(500);
                 lock.release();
                 static unsigned long time_last_pressed = 0;
                 constexpr unsigned long SOLENOID_RELEASE_RATELIMIT = 3000; // 3000 ms
