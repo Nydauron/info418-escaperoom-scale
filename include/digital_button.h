@@ -7,7 +7,7 @@ class DigitalButton {
         DigitalButton(int pin_in);
 
         /**
-         * Waits and pins until input to pin changes to signal
+         * Waits and spins until input to pin changes to signal
          *
          * @param signal is for HIGH or LOW
          */
