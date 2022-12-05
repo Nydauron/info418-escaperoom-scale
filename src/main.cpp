@@ -181,7 +181,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
             Serial.print("Average weight for check: ");
             Serial.println(weights.get_avg());
             #endif
-            // TODO: check if weight is within tolerance to 0
+
             if (abs(weights.get_avg() - expected_weight) <= TOLERANCE) {
                 // CORRECT!
                 #ifdef DEBUG
