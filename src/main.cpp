@@ -31,7 +31,10 @@ constexpr float LOADCELL_DIVIDER = 2010.0F / LOADCELL_MAX_KG;
 
 const double VARIENCE_EQUILIBRIUM_REACHED = 2e-2; // Threshold to determine if weight on scale is not changing.
 const double VARIENCE_CURRENTLY_WEIGHING = 5e-1;
-const float TOLERANCE = 1.25F;
+const float TOLERANCE = 1.0F;
+
+const int BUTTON_TARE_PIN = 12;
+float expected_weight = 0.0;
 
 RunningNumbers<float> weights(5);
 
@@ -95,9 +98,9 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
     PT_INIT(&led_pulse_pt);
     PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt, blue));
 
-    Serial.println("Sampling next 100 units ...");
+    Serial.println("Sampling next 50 units ...");
 
-    long avg = read_average_pt(&led_pulse_pt, 100, blue);
+    long avg = read_average_pt(&led_pulse_pt, 50, blue);
     loadcell.set_offset(avg);
     weighing_completed = true;
     PT_WAIT_THREAD(pt, led_gradual_pulse(&led_pulse_pt, blue));
@@ -107,19 +110,48 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
 
 static PT_THREAD(measure_weight (struct pt *pt)) {
     static struct pt led_pulse_pt;
+    static struct pt tare_pt;
 
     PT_BEGIN(pt);
+
+    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+
+    led.set_color(RGBB{255, 100, 0, 50});
+    led.apply();
+
+    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {}
+
+    delay(10);
+
+    loadcell.power_up();
+
+    PT_INIT(&tare_pt);
+    PT_SCHEDULE(measure_tare(&tare_pt));
+
+    led.set_color(RGBB{255, 255, 255, 50});
+    led.apply();
+
+    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+
+    led.reset_and_apply();
+
+    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {}
 
     weighing_completed = false;
     PT_INIT(&led_pulse_pt);
 
     while (true) {
-        if (weights.get_varience() <= VARIENCE_EQUILIBRIUM_REACHED && !weighing_completed) {
+        long avg = read_average_pt(&led_pulse_pt, 10) - loadcell.get_offset();
+        weights.add(avg / loadcell.get_scale());
+
+        if (weights.get_varience() > VARIENCE_CURRENTLY_WEIGHING) {
+            weighing_completed = false;
+        } else if (weights.get_varience() <= VARIENCE_EQUILIBRIUM_REACHED && !weighing_completed) {
             weighing_completed = true;
             PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt)); // clean up LED runtime
-
+            loadcell.power_down();
             // TODO: check if weight is within tolerance to 0
-            if (abs(weights.get_avg()) <= TOLERANCE) {
+            if (abs(weights.get_avg() - expected_weight) <= TOLERANCE) {
                 // CORRECT!
                 #ifdef DEBUG
                 Serial.println("Correct!");
@@ -141,14 +173,8 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
                     led.reset_and_apply();
                     delay(1000);
                 }
+                PT_EXIT(pt);
             }
-        }
-
-        long avg = read_average_pt(&led_pulse_pt, 10) - loadcell.get_offset();
-        weights.add(avg / loadcell.get_scale());
-
-        if (weights.get_varience() > VARIENCE_CURRENTLY_WEIGHING) {
-            weighing_completed = false;
         }
     }
 
@@ -160,6 +186,8 @@ void setup() {
     Serial.begin(9600);
     PT_INIT(&measure_tare_pt);
 
+    pinMode(BUTTON_TARE_PIN, INPUT);
+
     loadcell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
     loadcell.set_scale(LOADCELL_DIVIDER);
 
@@ -168,26 +196,44 @@ void setup() {
     led.apply();
     delay(1000);
 
-    // pulse LED blue in 1-second cycles for 3 seconds
-    constexpr int PRE_TARE_SECS = 3;
-    for (int i = 0; i < PRE_TARE_SECS; i++) {
-        led.set_color(RGBB{0, 0, 255, 100});
-        led.apply();
-        delay(500);
-        led.set_brightness(0);
-        led.apply();
-    }
+    led.set_color(RGBB{0, 0, 255, 50});
+    led.apply();
+    Serial.println("Waiting for taring signal ...");
+
+    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+
+    led.set_color(RGBB{0, 255, 0, 50});
+    led.apply();
+
+    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {} // user must release the button
+
+    PT_SCHEDULE(measure_tare(&measure_tare_pt));
+
+    led.set_color(RGBB{255, 100, 0, 50});
+    led.apply();
+
+    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+
+    led.set_color(RGBB{0, 255, 0, 50});
+    led.apply();
+
+    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {} // user must release the button
 
     Serial.println("Calibrating ...");
 
     // Call the protothread routine to measure the tare weight
     // This should also make the LED gradually pulse blue every 1 second or so
-    PT_SCHEDULE(measure_tare(&measure_tare_pt));
+    static struct pt led_pt;
+    PT_INIT(&led_pt);
+    long weight_raw = read_average_pt(&led_pt, 50, RGBB{255, 255, 255, 100});
 
+    expected_weight = (weight_raw - loadcell.get_offset()) / loadcell.get_scale();
     // Set the LED color to green to signal it is done calibraing
     led.set_color(RGBB{0, 255, 0, 100});
     led.apply();
     Serial.println("Done calibrating!");
+    Serial.print("Expected weight:\t");
+    Serial.println(expected_weight);
     delay(3000); // Wait 3 seconds to allow for weights to be taken off the scale
 
     // Fill up running average
@@ -197,6 +243,7 @@ void setup() {
     }
     // Once LED is off, the scale is operational
     led.reset_and_apply();
+    loadcell.power_down();
     Serial.println("Ready and actively waiting for correct weights!");
     delay(500); // Delay so that the LED can obserably turn off
 }
@@ -204,6 +251,10 @@ void setup() {
 void loop() {
     static struct pt measure_pt;
     PT_INIT(&measure_pt);
-    PT_SCHEDULE(measure_weight(&measure_pt));
-    exit(0);
+    char exit_status = measure_weight(&measure_pt);
+    switch (exit_status) {
+        case PT_ENDED:
+            exit(0);
+            break;
+    }
 }
