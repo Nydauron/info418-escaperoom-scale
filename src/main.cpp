@@ -39,12 +39,12 @@ float expected_weight = 0.0;
 
 DigitalButton button(BUTTON_TARE_PIN);
 
-constexpr RGB RED{255, 0, 0};        // Used when the submitted weight is wrong
-constexpr RGB GREEN{0, 255, 0};      // Used when the submitted weight is correct and when the scale is ready after setup
-constexpr RGB BLUE{0, 0, 255};       // Used when taring occurs
-constexpr RGB ORANGE{255, 100, 0};   // Used when measuring a submitted weight value
-constexpr RGB VIOLET{238, 130, 238}; // Used when button is pressed (and turns off when released) (exists to show responsiveness)
-constexpr RGB WHITE{255, 255, 255};  // Used for idicating the machine is on and when the machine is waiting for a weight submision
+constexpr RGB RED{255, 0, 0};       // Used when the submitted weight is wrong
+constexpr RGB GREEN{0, 255, 0};     // Used when the submitted weight is correct and when the scale is ready after setup
+constexpr RGB BLUE{0, 0, 255};      // Used when taring occurs
+constexpr RGB ORANGE{255, 100, 0};  // Used when measuring a submitted weight value
+constexpr RGB VIOLET{238, 0, 238};  // Used when button is pressed (and turns off when released) (exists to show responsiveness)
+constexpr RGB WHITE{255, 255, 255}; // Used for idicating the machine is on and when the machine is waiting for a weight submision
 
 RunningNumbers<float> weights(5);
 
