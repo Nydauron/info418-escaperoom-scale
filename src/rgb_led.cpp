@@ -32,9 +32,9 @@ void RGBLED::reset_and_apply() {
 }
 
 void RGBLED::set_color(RGBB color) {
-    r = color.r;
-    g = color.g;
-    b = color.b;
+    r = color.rgb.r;
+    g = color.rgb.g;
+    b = color.rgb.b;
     brightness = min(color.brightness, MAX_BRIGHTNESS);
 }
 

@@ -36,6 +36,13 @@ const float TOLERANCE = 1.0F;
 const int BUTTON_TARE_PIN = 12;
 float expected_weight = 0.0;
 
+constexpr RGB RED{255, 0, 0};        // Used when the submitted weight is wrong
+constexpr RGB GREEN{0, 255, 0};      // Used when the submitted weight is correct and when the scale is ready after setup
+constexpr RGB BLUE{0, 0, 255};       // Used when taring occurs
+constexpr RGB ORANGE{255, 100, 0};   // Used when measuring a submitted weight value
+constexpr RGB VIOLET{238, 130, 238}; // Used when button is pressed (and turns off when released) (exists to show responsiveness)
+constexpr RGB WHITE{255, 255, 255};  // Used for idicating the machine is on and when the machine is waiting for a weight submision
+
 RunningNumbers<float> weights(5);
 
 #ifdef DEBUG
@@ -44,10 +51,10 @@ RunningNumbers<float> calibration_weights(100);
 
 static bool weighing_completed  = false;
 
-static PT_THREAD(led_gradual_pulse (struct pt *pt, RGBB color = RGBB{255, 100, 0, 0})) {
+static PT_THREAD(led_gradual_pulse (struct pt *pt, RGBB color = RGBB{ORANGE, 0})) {
     PT_BEGIN(pt);
 
-    led.set_color(color); // Orange color RGBB{255, 150, 0, 0}
+    led.set_color(color);
     static unsigned long start_time = millis();
 
     while (!weighing_completed) {
@@ -64,7 +71,7 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt, RGBB color = RGBB{255, 100, 0
 }
 
 // Based off from HX711::read_average()
-inline long read_average_pt(struct pt *led_pt, unsigned int times = 1U, RGBB color = RGBB{255, 100, 0, 0}) {
+inline long read_average_pt(struct pt *led_pt, unsigned int times = 1U, RGBB color = RGBB{ORANGE, 0}) {
     #ifdef DEBUG
     static int c = 0;
     #endif
@@ -86,6 +93,7 @@ inline long read_average_pt(struct pt *led_pt, unsigned int times = 1U, RGBB col
 static struct pt measure_tare_pt;
 
 static PT_THREAD(measure_tare (struct pt *pt)) {
+    constexpr RGBB BLUE_HALF_BRIGHT = RGBB{BLUE, 50};
     static struct pt led_pulse_pt;
 
     PT_BEGIN(pt);
@@ -94,17 +102,15 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
 
     Serial.println("Calibrating tare weight ...");
 
-    static RGBB blue = RGBB{0, 0, 255, 50};
-
     PT_INIT(&led_pulse_pt);
-    PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt, blue));
+    PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt, BLUE_HALF_BRIGHT));
     #ifdef DEBUG
     static unsigned long start = millis();
     #endif
 
     Serial.println("Sampling next 50 units ...");
 
-    long avg = read_average_pt(&led_pulse_pt, 50, blue);
+    long avg = read_average_pt(&led_pulse_pt, 50, BLUE_HALF_BRIGHT);
     loadcell.set_offset(avg);
 
     #ifdef DEBUG
@@ -123,7 +129,7 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
     Serial.println(loadcell.get_offset());
     #endif
     weighing_completed = true;
-    PT_WAIT_THREAD(pt, led_gradual_pulse(&led_pulse_pt, blue));
+    PT_WAIT_THREAD(pt, led_gradual_pulse(&led_pulse_pt, BLUE_HALF_BRIGHT));
 
     PT_END(pt);
 }
@@ -136,7 +142,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
 
     while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
 
-    led.set_color(RGBB{255, 100, 0, 50});
+    led.set_color(RGBB{BLUE, 50});
     led.apply();
 
     while (digitalRead(BUTTON_TARE_PIN) == HIGH) {}
@@ -148,12 +154,13 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
     PT_INIT(&tare_pt);
     PT_SCHEDULE(measure_tare(&tare_pt));
 
-    led.set_color(RGBB{255, 255, 255, 50});
+    led.set_color(RGBB{WHITE, 50});
     led.apply();
 
     while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
 
-    led.reset_and_apply();
+    led.set_color(RGBB{ORANGE, 50});
+    led.apply();
 
     while (digitalRead(BUTTON_TARE_PIN) == HIGH) {}
 
@@ -187,7 +194,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
                 #ifdef DEBUG
                 Serial.println("Correct!");
                 #endif
-                led.set_color(RGBB{0, 255, 0, 100});
+                led.set_color(RGBB{GREEN, 100});
                 led.apply();
                 lock.release();
                 delay(3000);
@@ -204,7 +211,7 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
                 Serial.println("Incorrect!");
                 #endif
                 for (int i = 0; i < 3; i++) {
-                    led.set_color(RGBB{255, 0, 0, 100});
+                    led.set_color(RGBB{RED, 100});
                     led.apply();
                     delay(1000);
                     led.reset_and_apply();
@@ -231,29 +238,29 @@ void setup() {
     loadcell.set_scale(LOADCELL_DIVIDER);
 
     // Change LED to indicate the scale is powered on
-    led.set_color(RGBB{255, 255, 255, 50}); // turn LED white
+    led.set_color(RGBB{WHITE, 50}); // turn LED white
     led.apply();
     delay(1000);
 
-    led.set_color(RGBB{0, 0, 255, 50});
+    led.set_color(RGBB{BLUE, 50});
     led.apply();
     Serial.println("Waiting for taring signal ...");
 
     while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
 
-    led.set_color(RGBB{0, 255, 0, 50});
+    led.set_color(RGBB{VIOLET, 50});
     led.apply();
 
     while (digitalRead(BUTTON_TARE_PIN) == HIGH) {} // user must release the button
 
     PT_SCHEDULE(measure_tare(&measure_tare_pt));
 
-    led.set_color(RGBB{255, 100, 0, 50});
+    led.set_color(RGBB{ORANGE, 50});
     led.apply();
 
     while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
 
-    led.set_color(RGBB{0, 255, 0, 50});
+    led.set_color(RGBB{VIOLET, 50});
     led.apply();
 
     while (digitalRead(BUTTON_TARE_PIN) == HIGH) {} // user must release the button
@@ -266,11 +273,11 @@ void setup() {
     // This should also make the LED gradually pulse blue every 1 second or so
     static struct pt led_pt;
     PT_INIT(&led_pt);
-    long weight_raw = read_average_pt(&led_pt, 50, RGBB{255, 255, 255, 100});
+    long weight_raw = read_average_pt(&led_pt, 50, RGBB{WHITE, 100}); // TODO: Bug: why is it not flashing white?
 
     expected_weight = (weight_raw - loadcell.get_offset()) / loadcell.get_scale();
     // Set the LED color to green to signal it is done calibraing
-    led.set_color(RGBB{0, 255, 0, 50});
+    led.set_color(RGBB{GREEN, 50});
     led.apply();
 
     #ifdef DEBUG
