@@ -5,6 +5,7 @@
 #include "HX711.h"
 #include "protothreads.h"
 
+#include "digital_button.h"
 #include "rgb_led.h"
 #include "running_numbers.h"
 #include "spring_solenoid.h"
@@ -35,6 +36,8 @@ const float TOLERANCE = 1.0F;
 
 const int BUTTON_TARE_PIN = 12;
 float expected_weight = 0.0;
+
+DigitalButton button(BUTTON_TARE_PIN);
 
 constexpr RGB RED{255, 0, 0};        // Used when the submitted weight is wrong
 constexpr RGB GREEN{0, 255, 0};      // Used when the submitted weight is correct and when the scale is ready after setup
@@ -140,12 +143,12 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
 
     PT_BEGIN(pt);
 
-    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+    button.wait_til(HIGH);
 
     led.set_color(RGBB{BLUE, 50});
     led.apply();
 
-    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {}
+    button.wait_til(LOW);
 
     delay(10);
 
@@ -157,12 +160,12 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
     led.set_color(RGBB{WHITE, 50});
     led.apply();
 
-    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+    button.wait_til(HIGH);
 
     led.set_color(RGBB{ORANGE, 50});
     led.apply();
 
-    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {}
+    button.wait_til(LOW);
 
     weighing_completed = false;
     PT_INIT(&led_pulse_pt);
@@ -200,9 +203,9 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
                 delay(3000);
                 while (true) {
                     // Allow for the button to release the payload once the box has been unlocked once
-                    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+                    button.wait_til(HIGH);
                     lock.release();
-                    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {}
+                    button.wait_til(LOW);
                     delay(3000); // Rate limit it to prevent solenoid from burning out :)
                 }
             } else {
@@ -232,8 +235,6 @@ void setup() {
     #endif
     PT_INIT(&measure_tare_pt);
 
-    pinMode(BUTTON_TARE_PIN, INPUT);
-
     loadcell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
     loadcell.set_scale(LOADCELL_DIVIDER);
 
@@ -249,12 +250,12 @@ void setup() {
     Serial.println("Waiting for signal to tare ...");
     #endif
 
-    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+    button.wait_til(HIGH);
 
     led.set_color(RGBB{VIOLET, 50});
     led.apply();
 
-    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {} // user must release the button
+    button.wait_til(LOW); // must release the button
 
     PT_SCHEDULE(measure_tare(&measure_tare_pt));
 
@@ -269,12 +270,12 @@ void setup() {
     Serial.println("Waiting for signal to measure correct weight value ...");
     #endif
 
-    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+    button.wait_til(HIGH);
 
     led.set_color(RGBB{VIOLET, 50});
     led.apply();
 
-    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {} // user must release the button
+    button.wait_til(LOW); // must release the button
 
     #ifdef DEBUG
     Serial.println("Measuring ...");
