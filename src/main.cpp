@@ -190,8 +190,14 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
                 led.set_color(RGBB{0, 255, 0, 100});
                 led.apply();
                 lock.release();
-                delay(30000);
-                break;
+                delay(3000);
+                while (true) {
+                    // Allow for the button to release the payload once the box has been unlocked once
+                    while (digitalRead(BUTTON_TARE_PIN) == LOW) {}
+                    lock.release();
+                    while (digitalRead(BUTTON_TARE_PIN) == HIGH) {}
+                    delay(3000); // Rate limit it to prevent solenoid from burning out :)
+                }
             } else {
                 // INCORRECT!
                 #ifdef DEBUG
@@ -291,10 +297,5 @@ void setup() {
 void loop() {
     static struct pt measure_pt;
     PT_INIT(&measure_pt);
-    char exit_status = measure_weight(&measure_pt);
-    switch (exit_status) {
-        case PT_ENDED:
-            exit(0);
-            break;
-    }
+    measure_weight(&measure_pt);
 }
