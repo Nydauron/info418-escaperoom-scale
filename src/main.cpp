@@ -93,7 +93,7 @@ static PT_THREAD(measure_tare (struct pt *pt)) {
 
     Serial.println("Calibrating tare weight ...");
 
-    static RGBB blue = RGBB{0, 0, 255, 100};
+    static RGBB blue = RGBB{0, 0, 255, 50};
 
     PT_INIT(&led_pulse_pt);
     PT_SCHEDULE(led_gradual_pulse(&led_pulse_pt, blue));
@@ -192,7 +192,7 @@ void setup() {
     loadcell.set_scale(LOADCELL_DIVIDER);
 
     // Change LED to indicate the scale is powered on
-    led.set_color(RGBB{255, 255, 255, 100}); // turn LED white
+    led.set_color(RGBB{255, 255, 255, 50}); // turn LED white
     led.apply();
     delay(1000);
 
@@ -229,7 +229,7 @@ void setup() {
 
     expected_weight = (weight_raw - loadcell.get_offset()) / loadcell.get_scale();
     // Set the LED color to green to signal it is done calibraing
-    led.set_color(RGBB{0, 255, 0, 100});
+    led.set_color(RGBB{0, 255, 0, 50});
     led.apply();
     Serial.println("Done calibrating!");
     Serial.print("Expected weight:\t");
