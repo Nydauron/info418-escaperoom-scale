@@ -309,7 +309,6 @@ void setup() {
     #ifdef DEBUG
     Serial.println("Ready and actively waiting for correct weights!");
     #endif
-    delay(500); // Delay so that the LED can obserably turn off
 }
 
 void loop() {
