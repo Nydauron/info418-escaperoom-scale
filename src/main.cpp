@@ -210,13 +210,17 @@ static PT_THREAD(measure_weight (struct pt *pt)) {
                 led.set_color(RGBB{GREEN, 100});
                 led.apply();
                 lock.release();
-                delay(3000);
+                static unsigned long time_last_pressed = 0;
+                constexpr unsigned long SOLENOID_RELEASE_RATELIMIT = 3000; // 3000 ms
+                delay(SOLENOID_RELEASE_RATELIMIT);
                 while (true) {
-                    // Allow for the button to release the payload once the box has been unlocked once
-                    button.wait_til(HIGH);
-                    lock.release();
-                    button.wait_til(LOW);
-                    delay(3000); // Rate limit it to prevent solenoid from burning out :)
+                    if (millis() - time_last_pressed >= SOLENOID_RELEASE_RATELIMIT) { // Rate limit it to prevent solenoid from burning out :)
+                        // Allow for the button to release the payload once the box has been unlocked once
+                        button.wait_til(LOW); // Wait for button to be released
+                        button.wait_til(HIGH); // If button pressed, release solenoid
+                        time_last_pressed = millis();
+                        lock.release();
+                    }
                 }
             } else {
                 // INCORRECT!
