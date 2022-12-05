@@ -44,7 +44,7 @@ constexpr RGB GREEN{0, 255, 0};     // Used when the submitted weight is correct
 constexpr RGB BLUE{0, 0, 255};      // Used when taring occurs
 constexpr RGB ORANGE{255, 100, 0};  // Used when measuring a submitted weight value
 constexpr RGB VIOLET{238, 0, 238};  // Used when button is pressed (and turns off when released) (exists to show responsiveness)
-constexpr RGB WHITE{255, 255, 255}; // Used for idicating the machine is on and when the machine is waiting for a weight submision
+constexpr RGB WHITE{255, 255, 255}; // Used for idicating the machine is on, when the machine is waiting for a weight submission, and when the scale is measuring the calibrated weight
 
 RunningNumbers<float> weights(5);
 
@@ -57,10 +57,17 @@ static bool weighing_completed  = false;
 static PT_THREAD(led_gradual_pulse (struct pt *pt, RGBB color = RGBB{ORANGE, 0})) {
     PT_BEGIN(pt);
 
+    #ifdef DEBUG_FADE
+    if (!weighing_completed)
+        Serial.println("Starting fade");
+    #endif
     led.set_color(color);
     static unsigned long start_time = millis();
 
     while (!weighing_completed) {
+        #ifdef DEBUG_FADE
+        Serial.println("Step");
+        #endif
         constexpr unsigned long cycles = 10; // in ms
         unsigned long current_time = millis();
         unsigned long current_frame = current_time - start_time;
@@ -69,6 +76,9 @@ static PT_THREAD(led_gradual_pulse (struct pt *pt, RGBB color = RGBB{ORANGE, 0})
         PT_SLEEP(pt, time_to_wait);
     }
 
+    #ifdef DEBUG_FADE
+    Serial.println("Fading ended");
+    #endif
     led.reset_and_apply();
     PT_END(pt);
 }
@@ -285,7 +295,13 @@ void setup() {
     // This should also make the LED gradually pulse blue every 1 second or so
     static struct pt led_pt;
     PT_INIT(&led_pt);
-    long weight_raw = read_average_pt(&led_pt, 50, RGBB{WHITE, 100}); // TODO: Bug: why is it not flashing white?
+    constexpr RGBB WHITE_FADE = RGBB{WHITE, 0};
+
+    weighing_completed = false;
+    long weight_raw = read_average_pt(&led_pt, 50, WHITE_FADE);
+
+    weighing_completed = true;
+    PT_SCHEDULE(led_gradual_pulse(&led_pt, WHITE_FADE));
 
     expected_weight = (weight_raw - loadcell.get_offset()) / loadcell.get_scale();
     // Set the LED color to green to signal it is done calibraing
