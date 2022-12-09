@@ -7,9 +7,9 @@ An Arduino scale that was used as part of a puzzle in an escape room. This scale
 1. Install PlatformIO (VSCode has an extension)
 2. Clone repo
 3. Build
-  - If using VSCode, click bottom nav with check mark OR go to left nav > PlatformIO > Project Tasks > uno > General > Build
-  - If using CLI, run `pio run`
-  - Note: the dependencies should download when you try to build for the first time
+    - If using VSCode, click bottom nav with check mark OR go to left nav > PlatformIO > Project Tasks > uno > General > Build
+    - If using CLI, run `pio run`
+    - Note: the dependencies should download when you try to build for the first time
 
 ## How the code works
 
